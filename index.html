@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1E3A5F">
+  <meta name="description" content="Convert the POH AED one-page duty roster into a personal colour-coded calendar, Excel roster and .ics calendar file. Everything runs in your browser.">
+  <title>POH AED Duty Calendar Converter</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%231E3A5F'/%3E%3Cg%20fill='none'%20stroke='white'%20stroke-width='2'%3E%3Crect%20x='7'%20y='11'%20width='18'%20height='14'%20rx='2'/%3E%3Cpath%20d='M7%2016h18M12%208v5M20%208v5'/%3E%3C/g%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS via CDN (progressive enhancement: styles.css carries all critical styling) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Parsing + export libraries via CDN. app.js re-tries a mirror CDN if either fails. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ============================ HEADER ============================ -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">AED</div>
+        <div class="brand-text">
+          <h1>POH AED Duty Calendar Converter</h1>
+          <p>One-page roster &rarr; personal colour calendar</p>
+        </div>
+      </div>
+      <span class="privacy-badge" title="Your file never leaves this device">
+        <span class="privacy-dot" aria-hidden="true"></span>100% on-device
+      </span>
+    </header>
+
+    <noscript>
+      <div class="noscript">This converter needs JavaScript enabled. It runs entirely in your browser.</div>
+    </noscript>
+
+    <main class="app-main">
+
+      <!-- ============================ STEP 1 ============================ -->
+      <section class="step" id="step1" aria-labelledby="step1Title">
+        <div class="step-head">
+          <span class="step-num">1</span>
+          <div>
+            <h2 id="step1Title">Upload the POH duty roster</h2>
+            <p>Drop the one-page <code>.xlsx</code> here, or tap to browse. The roster is remembered on this device.</p>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone" role="button" tabindex="0"
+             aria-label="Choose or drop a POH duty .xlsx file">
+          <input type="file" id="fileInput" class="sr-only"
+                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          <svg class="dz-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M24 33V9m0 0-8 8m8-8 8 8" stroke="currentColor" stroke-width="2.4"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 30v6a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4v-6" stroke="currentColor"
+                  stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+          <p class="dz-title">Drop your <strong>.xlsx</strong> here</p>
+          <p class="dz-sub">or tap to choose a file &middot; POH AED One-Page Duty format</p>
+          <button type="button" class="btn btn-primary" id="chooseBtn">Choose .xlsx file</button>
+        </div>
+
+        <div class="status-row" id="fileStatus" role="status" aria-live="polite">
+          <span class="status-idle">No roster loaded yet.</span>
+        </div>
+
+        <div class="step1-footer">
+          <button type="button" class="link-btn hidden" id="clearBtn">Remove saved roster</button>
+          <details class="diagnostics" id="diagnostics" hidden>
+            <summary>Parse report</summary>
+            <pre id="diagnosticsText"></pre>
+          </details>
+        </div>
+      </section>
+
+      <!-- ============================ STEP 2 ============================ -->
+      <section class="step locked" id="step2" aria-labelledby="step2Title">
+        <div class="step-head">
+          <span class="step-num">2</span>
+          <div>
+            <h2 id="step2Title">Pick a doctor</h2>
+            <p>Search by initials or name. Listed in Senior / Junior / TMH–TSWH groups from the roster; consultants are hidden. No month is shown until you pick someone.</p>
+          </div>
+        </div>
+
+        <div class="combo" id="combo">
+          <div class="combo-input-wrap">
+            <svg class="combo-search" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.6" stroke="currentColor" stroke-width="1.8"/>
+              <path d="m13.2 13.2 3.6 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="staffSearch" class="combo-input" autocomplete="off"
+                   placeholder="Search name or initials…" role="combobox"
+                   aria-autocomplete="list" aria-expanded="false" aria-controls="comboList">
+            <button type="button" class="combo-toggle" id="comboToggle" aria-label="Show all staff">&#9662;</button>
+          </div>
+          <div class="combo-list" id="comboList" role="listbox" hidden></div>
+        </div>
+
+        <div class="selected-line" id="selectedLine">Select someone to see their month.</div>
+        <div class="summary" id="summary" aria-label="Monthly shift summary"></div>
+      </section>
+
+      <!-- ============================ STEP 3 ============================ -->
+      <section class="step locked" id="step3" aria-labelledby="step3Title">
+        <div class="step-head">
+          <span class="step-num">3</span>
+          <div>
+            <h2 id="step3Title">Your month at a glance</h2>
+            <p>Sunday-to-Saturday grid, or a scrollable agenda on small screens.</p>
+          </div>
+        </div>
+
+        <div class="view-head">
+          <h3 class="month-title" id="monthTitle">&mdash;</h3>
+          <div class="segmented" role="tablist" aria-label="View mode">
+            <button type="button" class="seg-btn is-active" id="viewCalendar" role="tab" aria-selected="true">Calendar</button>
+            <button type="button" class="seg-btn" id="viewAgenda" role="tab" aria-selected="false">Agenda</button>
+          </div>
+        </div>
+
+        <div class="empty-state" id="calendarEmpty">
+          <div class="empty-icon" aria-hidden="true">&#128197;</div>
+          <strong>No doctor selected yet</strong>
+          <span>Choose someone in Step 2 to see their month here.</span>
+        </div>
+
+        <div id="calendarView" class="calendar-wrap" role="tabpanel" hidden>
+          <div class="cal-dow" aria-hidden="true">
+            <span>Sunday</span><span>Monday</span><span>Tuesday</span><span>Wednesday</span>
+            <span>Thursday</span><span>Friday</span><span>Saturday</span>
+          </div>
+          <div class="cal-grid" id="calendarGrid"></div>
+        </div>
+
+        <div id="agendaView" class="agenda" role="tabpanel" hidden></div>
+
+        <div class="legend-block">
+          <h4>DUTY COLORS</h4>
+          <div class="legend" id="legend"></div>
+        </div>
+
+        <details class="color-panel" id="colorPanel">
+          <summary><span>Adjust duty colours</span><small>background + auto text tone, saved on this device</small></summary>
+          <div class="color-panel-body">
+            <p class="color-help">Change any background and the text tone is adjusted automatically for contrast. Untick <em>Auto</em> to set the text colour yourself. Colours apply to the calendar, agenda, badges, legend and the Excel export.</p>
+            <div class="color-grid" id="colorGrid"></div>
+
+            <details class="code-colors">
+              <summary>Individual duty codes <span class="color-count" id="codeColorCount"></span></summary>
+              <p class="color-help">A code here overrides its duty group. Untick <em>Inherit</em> to give that code its own colour (e.g. A5, FUC).</p>
+              <div class="color-grid" id="codeColorList"></div>
+            </details>
+
+            <div class="color-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="resetColors">Reset to pastel defaults</button>
+              <span class="color-saved">Changes are saved automatically</span>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================ STEP 4 ============================ -->
+      <section class="step locked" id="step4" aria-labelledby="step4Title">
+        <div class="step-head">
+          <span class="step-num">4</span>
+          <div>
+            <h2 id="step4Title">Export</h2>
+            <p>Both files are generated in your browser. Nothing is uploaded.</p>
+          </div>
+        </div>
+
+        <label class="opt-row" for="fillDateRow">
+          <input type="checkbox" id="fillDateRow" checked>
+          <span>
+            <strong>Colour the date-number row too</strong>
+            <small>Applies the pastel fill to both the date and the shift row, as in the export spec. Uncheck for a white date row (like the reference screenshot).</small>
+          </span>
+        </label>
+
+        <div class="export-buttons">
+          <button type="button" class="btn btn-primary btn-export" id="exportXlsx" disabled>
+            <span class="btn-ico" aria-hidden="true">&#9635;</span>
+            Download Color Excel (.xlsx)
+          </button>
+          <button type="button" class="btn btn-secondary btn-export" id="exportIcs" disabled>
+            <span class="btn-ico" aria-hidden="true">&#128197;</span>
+            Add to Apple / Google Calendar (.ics)
+          </button>
+        </div>
+
+        <p class="tip">
+          <strong>Google Calendar:</strong> on desktop open <em>Settings &rarr; Import &amp; export</em> and import the
+          downloaded <code>.ics</code> &mdash; on iPhone, tapping the button opens Apple Calendar directly.
+        </p>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>POH AED Duty Calendar Converter &middot; static, client-side, no backend &middot; times in Asia/Hong_Kong.</p>
+      <p class="footer-note">Check your final roster against the official duty list before relying on it clinically.</p>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
