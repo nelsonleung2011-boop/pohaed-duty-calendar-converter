@@ -905,16 +905,22 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 6. .ics export (RFC 5545, Asia/Hong_Kong, all-day VL/CCL)
+   * 6. .ics export (RFC 5545, all-day events only)
+   *
+   * Shift times change often, so every duty is exported as a date-only,
+   * all-day VEVENT. No TZID / VTIMEZONE is emitted, which also avoids the
+   * timezone interpretation problems Apple Calendar has with generated
+   * VTIMEZONE blocks. METHOD is deliberately absent: per RFC 5545 an
+   * object without METHOD is a plain snapshot, not a scheduling
+   * transaction, so Apple Calendar imports it as editable events instead
+   * of treating it as an invitation / subscription.
    * ------------------------------------------------------------------ */
 
-  /** Local wall-clock date-time string from minutes since midnight on `day`. */
-  function icsDateTime(year, month, day, minutes) {
+  /** YYYYMMDD for a calendar day (day may exceed the month length). */
+  function icsDate(year, month, day) {
     var d = new Date(Date.UTC(year, month - 1, 1));
-    d.setUTCDate(d.getUTCDate() + day - 1 + Math.floor(minutes / 1440));
-    var rest = ((minutes % 1440) + 1440) % 1440;
-    return pad4(d.getUTCFullYear()) + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) +
-           'T' + pad2(Math.floor(rest / 60)) + pad2(rest % 60) + '00';
+    d.setUTCDate(d.getUTCDate() + day - 1);
+    return pad4(d.getUTCFullYear()) + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate());
   }
 
   /** Fold a content line at 75 octets, UTF-8 aware. */
@@ -942,45 +948,31 @@
     L.push('VERSION:2.0');
     L.push('PRODID:-//POH AED//Duty Calendar Converter//EN');
     L.push('CALSCALE:GREGORIAN');
-    L.push('METHOD:PUBLISH');
-    L.push('X-WR-CALNAME:' + esc(initials + ' Duty — ' + roster.monthName + ' ' + y));
-    L.push('X-WR-TIMEZONE:Asia/Hong_Kong');
-    L.push('BEGIN:VTIMEZONE');
-    L.push('TZID:Asia/Hong_Kong');
-    L.push('BEGIN:STANDARD');
-    L.push('DTSTART:19790101T000000');
-    L.push('TZOFFSETFROM:+0800');
-    L.push('TZOFFSETTO:+0800');
-    L.push('TZNAME:HKT');
-    L.push('END:STANDARD');
-    L.push('END:VTIMEZONE');
+    L.push('X-WR-CALNAME:' + esc(initials + ' Duty - ' + roster.monthName + ' ' + y));
 
     var n = 0;
     for (var day = 1; day <= roster.daysInMonth; day++) {
       var list = dutiesFor(roster, staffId, day);
-      for (var i = 0; i < list.length; i++) {         // "Off" days simply produce no event
-        var duty = list[i], t = duty.timing || getTiming(duty.label);
+      for (var i = 0; i < list.length; i++) {         // blank days simply produce no event
+        var duty = list[i];
         n++;
         L.push('BEGIN:VEVENT');
         L.push('UID:' + y + pad2(mo) + pad2(day) + '-' + n + '-' +
-               initials.toLowerCase() + '@poh-aed-duty.local');
+               initials.toLowerCase() + '@poh-aed-duty.calendar');
         L.push('DTSTAMP:' + stamp);
-        if (t.allDay) {
-          L.push('DTSTART;VALUE=DATE:' + icsDateTime(y, mo, day, 0).slice(0, 8));
-          L.push('DTEND;VALUE=DATE:' + icsDateTime(y, mo, day + 1, 0).slice(0, 8));
-        } else {
-          L.push('DTSTART;TZID=Asia/Hong_Kong:' + icsDateTime(y, mo, day, t.start));
-          L.push('DTEND;TZID=Asia/Hong_Kong:' + icsDateTime(y, mo, day, t.end));
-        }
-        L.push('SUMMARY:' + esc(initials + ' — ' + duty.label));
+        // DTEND is exclusive for DATE-valued events: +1 day = one visible day.
+        L.push('DTSTART;VALUE=DATE:' + icsDate(y, mo, day));
+        L.push('DTEND;VALUE=DATE:' + icsDate(y, mo, day + 1));
+        L.push('SUMMARY:' + esc(initials + ' - ' + duty.label));
         var desc = [roster.monthName + ' ' + day + ', ' + y,
                     duty.block + ' block / column ' + duty.column,
-                    t.allDay ? 'All-day duty' : 'Time: ' + t.label + ' (Asia/Hong_Kong)',
+                    'All-day duty (no fixed time)',
                     duty.note ? 'Roster note: ' + duty.note : '',
                     'Source: ' + roster.fileName].filter(Boolean).join(' | ');
         L.push('DESCRIPTION:' + esc(desc));
         L.push('LOCATION:POH AED');
         L.push('CATEGORIES:' + PALETTE[categoryOf(duty.code)].label);
+        L.push('STATUS:CONFIRMED');
         L.push('TRANSP:OPAQUE');
         L.push('END:VEVENT');
       }
@@ -1692,7 +1684,7 @@
       var ics = API.buildIcs(state.roster, state.staffId);
       downloadBlob(new Blob([ics], { type: 'text/calendar;charset=utf-8' }),
                    API.icsFileName(state.roster, state.staffId));
-      toast('Calendar file downloaded — open it to add the shifts.');
+      toast('All-day calendar downloaded — open the .ics to import it.');
     } catch (e) {
       console.error(e);
       toast('Calendar export failed: ' + (e.message || e), 'error');
