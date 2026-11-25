@@ -46,7 +46,7 @@
           <span class="step-num">1</span>
           <div>
             <h2 id="step1Title">Upload the POH duty roster</h2>
-            <p>Drop the one-page <code>.xlsx</code> here, or tap to browse. The roster is remembered on this device.</p>
+            <p>Drop a POH one-page or TMH SMO <code>.xlsx</code> here, or tap to browse. The roster is remembered on this device.</p>
           </div>
         </div>
 
@@ -61,7 +61,7 @@
                   stroke-width="2.4" stroke-linecap="round"/>
           </svg>
           <p class="dz-title">Drop your <strong>.xlsx</strong> here</p>
-          <p class="dz-sub">or tap to choose a file &middot; POH AED One-Page Duty format</p>
+          <p class="dz-sub">or tap to choose a file &middot; POH AED / TMH SMO formats</p>
           <button type="button" class="btn btn-primary" id="chooseBtn">Choose .xlsx file</button>
         </div>
 
@@ -84,7 +84,7 @@
           <span class="step-num">2</span>
           <div>
             <h2 id="step2Title">Pick a doctor</h2>
-            <p>Search by initials or name. Listed in Senior / Junior / TMH–TSWH groups from the roster; consultants are hidden. No month is shown until you pick someone.</p>
+            <p>Search by initials or name. Groups come from the roster's own staff list; codes found only in the grid are added automatically. No month is shown until you pick someone.</p>
           </div>
         </div>
 
@@ -148,7 +148,12 @@
         <details class="color-panel" id="colorPanel">
           <summary><span>Adjust duty colours</span><small>background + auto text tone, saved on this device</small></summary>
           <div class="color-panel-body">
-            <p class="color-help">Change any background and the text tone is adjusted automatically for contrast. Untick <em>Auto</em> to set the text colour yourself. Colours apply to the calendar, agenda, badges, legend and the Excel export.</p>
+            <p class="color-help">Start with a ready-made colour pattern, then fine-tune anything below. Changes apply to the calendar, agenda, badges, legend and the Excel export.</p>
+            <div class="theme-block">
+              <div class="theme-heading"><h5>Colour patterns</h5><span class="theme-current" id="themeCurrent"></span></div>
+              <div class="theme-list" id="themeList" role="radiogroup" aria-label="Colour pattern"></div>
+            </div>
+            <p class="color-help">Change any background and the text tone is adjusted automatically for contrast. Untick <em>Auto</em> to set the text colour yourself.</p>
             <div class="color-grid" id="colorGrid"></div>
 
             <details class="code-colors">

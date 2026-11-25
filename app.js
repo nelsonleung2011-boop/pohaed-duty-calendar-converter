@@ -41,15 +41,95 @@
     N:     { bg: '#F4CCCC', fg: '#661919', label: 'N' },
     VL:    { bg: '#FCE5CD', fg: '#663C00', label: 'VL' },
     OTHER: { bg: '#F4CCB8', fg: '#662900', label: 'Resp / Other' },
-    OFF:   { bg: '#F3F4F6', fg: '#6B7280', label: 'Off' }
+    OFF:   { bg: '#F3F4F6', fg: '#6B7280', label: 'Blank' }
   };
   var CATEGORY_ORDER = ['A', 'P', 'O', 'N', 'VL', 'OTHER', 'OFF'];
+
+  /**
+   * Ready-made colour schemes. Every preset supplies all seven categories so
+   * the web UI, Excel export and colour editor stay in sync. The first preset
+   * is the original pastel roster look.
+   */
+  var THEMES = [
+    {
+      id: 'pastel', name: 'Soft Pastel Enterprise',
+      desc: 'Soft tints and dark ink text — the original roster look.',
+      palette: PALETTE
+    },
+    {
+      id: 'mist', name: 'Mist & Sage',
+      desc: 'Cool blue-grey and sage tints — calm, clinical and easy on the eyes.',
+      palette: {
+        A:     { bg: '#E3ECF2', fg: '#1D3A4A', label: 'A duties' },
+        P:     { bg: '#E3EFE4', fg: '#23421F', label: 'P duties' },
+        O:     { bg: '#ECE8F2', fg: '#37244F', label: 'O duties' },
+        N:     { bg: '#F6E3E1', fg: '#5C2020', label: 'N' },
+        VL:    { bg: '#F5EEDC', fg: '#5A440E', label: 'VL' },
+        OTHER: { bg: '#EFE6DE', fg: '#54321E', label: 'Resp / Other' },
+        OFF:   { bg: '#F3F4F6', fg: '#6B7280', label: 'Blank' }
+      }
+    },
+    {
+      id: 'cream', name: 'Warm Cream & Rose',
+      desc: 'Warm cream, rose and apricot tints with deep brown ink.',
+      palette: {
+        A:     { bg: '#F2E6DA', fg: '#4A2E17', label: 'A duties' },
+        P:     { bg: '#E8EFD9', fg: '#31410F', label: 'P duties' },
+        O:     { bg: '#F0E4EE', fg: '#4A1F42', label: 'O duties' },
+        N:     { bg: '#FBE0DC', fg: '#63211B', label: 'N' },
+        VL:    { bg: '#FCEBCF', fg: '#5C3A00', label: 'VL' },
+        OTHER: { bg: '#F7E3D3', fg: '#5B3015', label: 'Resp / Other' },
+        OFF:   { bg: '#F3F4F6', fg: '#6B7280', label: 'Blank' }
+      }
+    },
+    {
+      id: 'seaglass', name: 'Sea Glass',
+      desc: 'Soft aqua, teal and sea-mist tints with cool dark text.',
+      palette: {
+        A:     { bg: '#DBEEF0', fg: '#12454C', label: 'A duties' },
+        P:     { bg: '#DFF0E4', fg: '#1B4A2A', label: 'P duties' },
+        O:     { bg: '#E6E9F6', fg: '#2C3567', label: 'O duties' },
+        N:     { bg: '#F5DEE4', fg: '#64243C', label: 'N' },
+        VL:    { bg: '#F6ECD5', fg: '#5A420D', label: 'VL' },
+        OTHER: { bg: '#E2EDE8', fg: '#245044', label: 'Resp / Other' },
+        OFF:   { bg: '#F3F4F6', fg: '#6B7280', label: 'Blank' }
+      }
+    },
+    {
+      id: 'badge', name: 'Color-Coded Badge System',
+      desc: 'Bold solid badge blocks with white text — easy to scan at a glance.',
+      palette: {
+        A:     { bg: '#1D4ED8', fg: '#FFFFFF', label: 'A duties' },
+        P:     { bg: '#15803D', fg: '#FFFFFF', label: 'P duties' },
+        O:     { bg: '#7C3AED', fg: '#FFFFFF', label: 'O duties' },
+        N:     { bg: '#BE123C', fg: '#FFFFFF', label: 'N' },
+        VL:    { bg: '#B45309', fg: '#FFFFFF', label: 'VL' },
+        OTHER: { bg: '#9A3412', fg: '#FFFFFF', label: 'Resp / Other' },
+        OFF:   { bg: '#EEF2F7', fg: '#475569', label: 'Blank' }
+      }
+    },
+    {
+      id: 'pill', name: 'High-Contrast Pill System',
+      desc: 'Deep tiles, bright text and rounded pills — maximum contrast.',
+      palette: {
+        A:     { bg: '#0F2544', fg: '#93C5FD', label: 'A duties' },
+        P:     { bg: '#0B2E1E', fg: '#86EFAC', label: 'P duties' },
+        O:     { bg: '#2E1052', fg: '#D8B4FE', label: 'O duties' },
+        N:     { bg: '#3B0A12', fg: '#FCA5A5', label: 'N' },
+        VL:    { bg: '#3A2400', fg: '#FCD34D', label: 'VL' },
+        OTHER: { bg: '#3A1607', fg: '#FDBA74', label: 'Resp / Other' },
+        OFF:   { bg: '#F1F5F9', fg: '#475569', label: 'Blank' }
+      }
+    }
+  ];
+  var THEME_BY_ID = {};
+  THEMES.forEach(function (t) { THEME_BY_ID[t.id] = t; });
 
   /** Short keys used for the CSS custom properties that drive the whole UI. */
   var CSS_KEY = { A: 'a', P: 'p', O: 'o', N: 'n', VL: 'v', OTHER: 'r', OFF: 'off' };
 
-  /** Consultants are deliberately hidden from the staff picker. */
-  var EXCLUDED_STAFF = ['wong cy', 'wong ht'];
+  /** No staff are excluded — consultants are included in the picker again. */
+  var EXCLUDED_STAFF = [];
 
   /** Keys for the two localStorage records (roster + user colours). */
   var LS_KEY = 'poh-duty-roster-v1';
@@ -152,6 +232,23 @@
     return '#1F2937';
   }
 
+  /** Recognise which preset a saved palette matches, so old caches upgrade cleanly. */
+  function themeIdForPalette(palette) {
+    if (!palette) return 'custom';
+    for (var i = 0; i < THEMES.length; i++) {
+      var p = THEMES[i].palette, match = true;
+      for (var j = 0; j < CATEGORY_ORDER.length; j++) {
+        var cat = CATEGORY_ORDER[j];
+        if (String(palette[cat] && palette[cat].bg).toUpperCase() !== p[cat].bg.toUpperCase() ||
+            String(palette[cat] && palette[cat].fg).toUpperCase() !== p[cat].fg.toUpperCase()) {
+          match = false; break;
+        }
+      }
+      if (match) return THEMES[i].id;
+    }
+    return 'custom';
+  }
+
   function codeKey(code) {
     return String(code || '').replace(/\s*\([^)]*\)\s*/g, '').replace(/\s+/g, '').toUpperCase();
   }
@@ -212,14 +309,23 @@
    * 3. Month / year and layout detection
    * ------------------------------------------------------------------ */
 
-  /** 12_2026 -> December 2026; falls back to U1 text such as "Dec 2026". */
+  /**
+   * Month / year from a sheet name or the top rows.
+   * Supports POH `12_2026` / "Dec 2026" and TMH `2025-07-SMO` / "2025/7".
+   */
   function detectMonthYear(sheetName, ws) {
-    var m = /^(\d{1,2})[_\-\s](\d{4})$/.exec(String(sheetName || '').trim());
+    var name = String(sheetName || '').trim();
+    var m = /^(\d{1,2})[_\-\s](\d{4})$/.exec(name);            // POH: 12_2026
     if (m) {
       var mo = parseInt(m[1], 10), yr = parseInt(m[2], 10);
       if (mo >= 1 && mo <= 12 && yr > 1900) return { month: mo, year: yr, source: 'sheet name' };
     }
-    // Fallback: scan the first three rows for "Dec 2026" / "December 2026".
+    m = /^(\d{4})[_\-\s/](\d{1,2})(?:[_\-\s/].*)?$/.exec(name); // TMH: 2025-07-SMO
+    if (m) {
+      var yr2 = parseInt(m[1], 10), mo2 = parseInt(m[2], 10);
+      if (mo2 >= 1 && mo2 <= 12 && yr2 > 1900) return { month: mo2, year: yr2, source: 'sheet name' };
+    }
+    // Fallback: scan the first three rows for "Dec 2026", "2025/7", etc.
     var rng = usedRange(ws);
     for (var r = 1; r <= Math.min(3, rng.maxRow); r++) {
       for (var c = 0; c < Math.min(60, rng.maxCol); c++) {
@@ -228,6 +334,11 @@
         if (mm) {
           var idx = MONTH_ABBR.indexOf(mm[1].toLowerCase().slice(0, 3));
           if (idx >= 0) return { month: idx + 1, year: parseInt(mm[2], 10), source: 'cell ' + colLetter(c) + r };
+        }
+        var numeric = /\b(20\d{2})\s*[/\-]\s*(\d{1,2})\b/.exec(t);
+        if (numeric) {
+          var nmo = parseInt(numeric[2], 10), nyr = parseInt(numeric[1], 10);
+          if (nmo >= 1 && nmo <= 12) return { month: nmo, year: nyr, source: 'cell ' + colLetter(c) + r };
         }
       }
     }
@@ -264,8 +375,8 @@
     for (var c = startCol; c <= endCol; c++) {
       var h = readCell(ws, headerRow, c);
       if (!h) continue;
-      if (/^remarks?$/i.test(h)) continue;             // MO "Remarks" notes column
-      if (!/^[A-Za-z0-9]{1,8}$/.test(h)) continue;    // only short duty codes
+      if (/^remarks?$/i.test(h)) continue;             // MO "Remarks" notes column: not a duty
+      if (!/^[A-Za-z][A-Za-z0-9 ]{0,9}$/.test(h)) continue; // short codes, incl. "Std L"
       list.push({ col: c, code: h, block: block });
     }
     return list;
@@ -368,7 +479,7 @@
    * @param {string} fileName              used for diagnostics / filenames
    * @returns {object} roster (JSON-safe)
    */
-  function parseWorkbook(data, fileName) {
+  function parsePohWorkbook(data, fileName) {
     var XLSX = getXLSX();
     var wb = XLSX.read(data, { type: 'array', cellDates: false, cellFormula: false });
     if (!wb.SheetNames.length) throw new Error('The workbook has no worksheets.');
@@ -470,7 +581,8 @@
       if (EXCLUDED_STAFF.indexOf(s.id) >= 0) return;          // Wong CY / Wong HT
       var b = byStaff[s.id];
       var count = 0;
-      if (b) Object.keys(b).forEach(function (d) { count += b[d].length; });
+      // One duty per day: a paired A5/FUC day counts once, not twice.
+      if (b) Object.keys(b).forEach(function (d) { if (b[d].length) count++; });
       if (!count) return;
       var name = s.name + (s.alt.length ? ' / ' + s.alt.join(' / ') : '');
       s.label = s.discovered ? (s.key + ' (not in legend)')
@@ -488,6 +600,7 @@
 
     return {
       version: 1,
+      layout: 'POH',
       fileName: fileName || 'duty.xlsx',
       sheetName: sheetName,
       month: my.month,
@@ -508,17 +621,215 @@
     };
   }
 
+  /* --------------------- generic / TMH single-grid layout -------------- */
+
+  /** Find the row/column of the "day" + "wkd" pair (TMH uses A3/B3). */
+  function findTmhHeader(ws, rng) {
+    for (var r = 1; r <= Math.min(6, rng.maxRow); r++) {
+      for (var c = 0; c < Math.min(4, rng.maxCol); c++) {
+        if (/^day$/i.test(readCell(ws, r, c)) && /^wkd$/i.test(readCell(ws, r, c + 1))) {
+          return { row: r, dayCol: c };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** A TMH sheet is one wide grid; POH has Senior/MO labels in row 2. */
+  function isTmhSheet(ws, rng) {
+    if (!findTmhHeader(ws, rng)) return false;
+    var maxCol = Math.min(rng.maxCol, 60);
+    return !(findLabel(ws, 'Senior', [2, 3], maxCol) || findLabel(ws, 'MO', [2, 3], maxCol));
+  }
+
+  /** Header text -> duty column. The layout shifts by month, so never use fixed letters. */
+  function collectTmhHeaders(ws, header, maxCol) {
+    var list = [];
+    for (var c = header.dayCol + 2; c < Math.min(maxCol, 60); c++) {
+      var h = readCell(ws, header.row, c);
+      // "Floor" is a real duty column in TMH rosters (it contains staff names);
+      // only the day/weekday and free-text "events" columns are meta columns.
+      if (!h || /^(day|wkd|events|remarks?)$/i.test(h)) continue;
+      if (!/^[A-Za-z][A-Za-z0-9()+#* ]{0,14}$/.test(h)) continue;  // e.g. M1(AC), VL3
+      list.push({ col: c, code: h, block: 'TMH' });
+    }
+    return list;
+  }
+
+  /**
+   * TMH staff come from the lower "Senior Medical Staff:" list (key + full name)
+   * and the USG team legend. Codes that appear in the grid but not here are
+   * auto-discovered when their cell is read.
+   */
+  function buildTmhDirectory(ws, afterRow, maxRow, maxCol) {
+    var dir = new Map();
+    var end = Math.min(maxRow, afterRow + 40);
+    for (var r = afterRow + 1; r <= end; r++) {
+      var key = readCell(ws, r, 1), name = readCell(ws, r, 2);
+      if (!key || !name) continue;
+      if (key.length > 22 || /[\d()\-/]|denotes|duty|list|members|compassionate|CO for|USG|Block|EMW/i.test(key)) continue;
+      if (!/[A-Za-z]/.test(key)) continue;
+      var nk = norm(key);
+      if (!dir.has(nk)) dir.set(nk, { id: nk, key: key, name: name, group: 'Senior', alt: [], discovered: false });
+    }
+    for (var r2 = afterRow + 1; r2 <= end; r2++) {
+      for (var c = 0; c < Math.min(maxCol, 40); c++) {
+        var t = readCell(ws, r2, c);
+        var m = /USG support service team members:\s*(.+)/i.exec(t);
+        if (!m) continue;
+        m[1].split(/[,;]/).forEach(function (token) {
+          var k = String(token).trim();
+          if (!k || k.length > 12) return;
+          var id = norm(k);
+          if (!dir.has(id)) dir.set(id, { id: id, key: k, name: 'USG support team', group: 'USG', alt: [], discovered: false });
+        });
+      }
+    }
+    return dir;
+  }
+
+  /** Accept real staff tokens; reject event prose such as "CRM - CJ" or "TD (POH)". */
+  function isTmhStaffToken(base, dir) {
+    var b = String(base || '').trim();
+    if (!b || b.length > 22) return false;
+    if (dir.has(norm(b))) return true;
+    if (/[\d()\-/]/.test(b)) return false;
+    if (/^[A-Z]{2,4}$/.test(b)) return true;                  // BT, TO, GW, TL, SW
+    if (/^[A-Z][a-z]{1,8}$/.test(b)) return true;              // Fung, Lam, Lui, Lee
+    if (/^[A-Z][a-z]{1,10} [A-Z]{1,3}$/.test(b)) return true;  // Wong HT
+    return false;
+  }
+
+  /** Below-grid legend lines such as "+ denotes duty with 1 additional hr". */
+  function collectTmhTimingNotes(ws, firstRow, maxRow, maxCol) {
+    var notes = {};
+    for (var r = firstRow; r <= Math.min(maxRow, 80); r++) {
+      for (var c = 0; c < Math.min(maxCol, 40); c++) {
+        var t = readCell(ws, r, c);
+        var m = /^([*^#+$]{1,2})\s+denotes\s+(.+)$/i.exec(t);
+        if (m) notes[m[1]] = t;
+        m = /^([A-Za-z][A-Za-z0-9]{0,5}[*^#+])\s+denotes\s+(.+)$/i.exec(t);
+        if (m) notes[m[1].toUpperCase()] = t;
+      }
+    }
+    return notes;
+  }
+
+  /** Parse a TMH AED Senior Roster: one wide grid, staff found by cell text + column header. */
+  function parseTmhWorkbook(ws, sheetName, fileName, rng) {
+    var header = findTmhHeader(ws, rng);
+    var my = detectMonthYear(sheetName, ws);
+    var days = daysInMonth(my.year, my.month);
+    var warnings = [];
+    if (my.guessed) warnings.push('Month/year not found in the sheet name or top rows — used the device date instead.');
+
+    var headers = collectTmhHeaders(ws, header, rng.maxCol);
+    if (!headers.length) throw new Error('No duty headers found on row ' + header.row + '.');
+
+    var dayRows = [];
+    for (var r = header.row + 1; r <= Math.min(rng.maxRow, 45); r++) {
+      var d = Number(readCell(ws, r, header.dayCol));
+      if (!Number.isInteger(d) || d < 1 || d > 31) {
+        if (dayRows.length) break;
+        continue;
+      }
+      dayRows.push({ day: d, row: r });
+    }
+    if (!dayRows.length) throw new Error('No day numbers found in column ' + colLetter(header.dayCol) + '.');
+    if (dayRows.length < days) warnings.push('Only ' + dayRows.length + ' day rows found; ' +
+      MONTH_NAMES[my.month - 1] + ' has ' + days + '.');
+
+    var lastDayRow = dayRows[dayRows.length - 1].row;
+    var dir = buildTmhDirectory(ws, lastDayRow, rng.maxRow, rng.maxCol);
+    var timingNotes = collectTmhTimingNotes(ws, lastDayRow + 1, rng.maxRow, rng.maxCol);
+    var byStaff = {}, discovered = [];
+
+    for (var i = 0; i < dayRows.length; i++) {
+      var day = dayRows[i].day;
+      if (day > days) continue;
+      var row = dayRows[i].row;
+      for (var h = 0; h < headers.length; h++) {
+        var hd = headers[h];
+        var text = readCell(ws, row, hd.col);
+        if (!text) continue;
+        var toks = splitTokens(text);
+        for (var t = 0; t < toks.length; t++) {
+          var p = parseToken(toks[t]);
+          if (!isTmhStaffToken(p.base, dir)) continue;
+          var id = norm(p.base);
+          var staff = dir.get(id);
+          if (!staff) {
+            staff = { id: id, key: p.base, name: p.base, group: 'Discovered', alt: [], discovered: true };
+            dir.set(id, staff);
+            discovered.push(p.base);
+          }
+          var key = (hd.code + p.modifier).toUpperCase();
+          var label = hd.code + p.modifier + (p.extra ? ' ' + p.extra : '');
+          var duty = {
+            code: hd.code, modifier: p.modifier, extra: p.extra, label: label,
+            note: p.modifier ? (timingNotes[p.modifier] || timingNotes[key] || '') : '',
+            timing: getTiming(hd.code + p.modifier), block: 'TMH',
+            column: colLetter(hd.col), source: text
+          };
+          var bucket = byStaff[id] || (byStaff[id] = {});
+          var list = bucket[day] || (bucket[day] = []);
+          if (!list.some(function (x) { return x.label === label; })) list.push(duty);
+        }
+      }
+    }
+
+    var staffList = [];
+    dir.forEach(function (s) {
+      var b = byStaff[s.id], count = 0;
+      if (b) Object.keys(b).forEach(function (d) { if (b[d].length) count++; });
+      if (!count) return;
+      var name = s.name + (s.alt.length ? ' / ' + s.alt.join(' / ') : '');
+      s.label = s.discovered ? (s.key + ' (not in list)')
+              : (name && name !== s.key ? s.key + ' — ' + name : s.key);
+      s.dutyCount = count;
+      staffList.push(s);
+    });
+    staffList.sort(function (a, b) { return a.key.localeCompare(b.key, undefined, { sensitivity: 'base' }); });
+    if (discovered.length) {
+      warnings.push(discovered.length + ' staff code(s) found in the grid but not in the staff list: ' +
+                    Array.from(new Set(discovered)).slice(0, 12).join(', ') + '.');
+    }
+
+    return {
+      version: 1, layout: 'TMH',
+      fileName: fileName || 'duty.xlsx', sheetName: sheetName,
+      month: my.month, year: my.year, monthName: MONTH_NAMES[my.month - 1],
+      monthSource: my.source, daysInMonth: days, leadingBlanks: leadingBlanks(my.year, my.month),
+      seniorHeaders: headers.map(function (h) { return h.code; }), moHeaders: [],
+      dayRowCount: dayRows.length, seniorDayCol: colLetter(header.dayCol), moDayCol: '—',
+      timingNotes: timingNotes, staff: staffList, byStaff: byStaff, warnings: warnings
+    };
+  }
+
+  /** Public entry point: choose the layout from the sheet itself, then parse it. */
+  function parseWorkbook(data, fileName) {
+    var XLSX = getXLSX();
+    var wb = XLSX.read(data, { type: 'array', cellDates: false, cellFormula: false });
+    if (!wb.SheetNames.length) throw new Error('The workbook has no worksheets.');
+    var sheetName = wb.SheetNames.filter(function (n) { return /^\d{1,2}[_\-\s]\d{4}$/.test(n.trim()); })[0]
+                 || wb.SheetNames.filter(function (n) { return /^\d{4}[_\-\s/]\d{1,2}/.test(n.trim()); })[0]
+                 || wb.SheetNames[0];
+    var ws = wb.Sheets[sheetName];
+    if (isTmhSheet(ws, usedRange(ws))) return parseTmhWorkbook(ws, sheetName, fileName, usedRange(ws));
+    return parsePohWorkbook(data, fileName);
+  }
+
   /* ------------------------------------------------------------------ *
    * 5. Duty classification + timings
    * ------------------------------------------------------------------ */
 
   function categoryOf(code) {
-    var c = String(code || '').replace(/[*^#+].*$/, '').trim().toUpperCase();
-    if (/^A\d?$/.test(c)) return 'A';
+    var c = String(code || '').replace(/[*^#+].*$/, '').trim().toUpperCase().replace(/\s+/g, '');
+    if (/^A\d?$/.test(c) || c === 'AX') return 'A';
     if (/^P\d?$/.test(c)) return 'P';
     if (/^O\d?$/.test(c)) return 'O';
-    if (c === 'N' || c === 'TSWN') return 'N';
-    if (c === 'VL' || c === 'CCL') return 'VL';
+    if (c === 'N' || /^N\d$/.test(c) || c === 'TSWN') return 'N';
+    if (/^VL\d?$/.test(c) || c === 'CCL' || c === 'STDL') return 'VL'; // VL1-3 / Std L are leave
     return 'OTHER';                                  // Resp / M / C / FUC / TSWM / unknown
   }
 
@@ -528,6 +839,10 @@
    */
   function getTiming(label) {
     var clean = String(label || '').replace(/\s*\([^)]*\)\s*/g, '').trim();   // strip "(am)"
+    var compact = clean.replace(/\s+/g, '').toUpperCase();
+    // Leave codes are whole-day events, like VL / CCL.
+    if (compact === 'STDL' || /^VL\d?$/.test(compact) || compact === 'CCL')
+      return { allDay: true, start: 0, duration: 0, label: 'All day', note: '' };
     var m = /^([A-Za-z]+)(\d+)?([*^#+])?$/.exec(clean);
     if (!m) return timed(9 * 60, 8 * 60, 'Unmapped code');
     var family = m[1].toUpperCase();
@@ -549,6 +864,7 @@
     if (family === 'N' || family === 'TSWN') return timed(23 * 60 + 30, 9 * 60); // 23:30-08:30 (+1)
     if (family === 'M' || family === 'TSWM')
       return mod === '#' ? timed(11 * 60, 10 * 60) : timed(11 * 60, 9 * 60);    // 11:00-20:00 / 21:00
+    if (family === 'MAB') return timed(14 * 60 + 30, 60, 'MAB at 14:30');
     if (family === 'RESP' || family === 'FUC' || family === 'C') return timed(9 * 60, 8 * 60);
     if (family === 'VL' || family === 'CCL')
       return { allDay: true, start: 0, duration: 0, label: 'All day', note: '' };
@@ -576,13 +892,14 @@
     return String((staff && staff.key) || 'DUTY').replace(/[^A-Za-z0-9]/g, '') || 'DUTY';
   }
 
-  /** Monthly badge counts (A / P / O / N / VL / OTHER / OFF / TOTAL). */
+  /** Monthly badge counts. Paired duties (A5/FUC) are one duty and one category. */
   function summary(roster, staffId) {
     var c = { A: 0, P: 0, O: 0, N: 0, VL: 0, OTHER: 0, OFF: 0, TOTAL: 0 };
     for (var d = 1; d <= roster.daysInMonth; d++) {
       var list = dutiesFor(roster, staffId, d);
       if (!list.length) { c.OFF++; continue; }
-      for (var i = 0; i < list.length; i++) { c[categoryOf(list[i].code)]++; c.TOTAL++; }
+      c[categoryOf(list[0].code)]++;
+      c.TOTAL++;
     }
     return c;
   }
@@ -745,7 +1062,8 @@
         var cat = duties.length ? categoryOf(duties[0].code) : 'OFF';
         var pal = duties.length ? colorsFor(duties[0].code, palette, codeColors) : palette.OFF;
         var dCell = dateRow.getCell(c2), sCell = shiftRow.getCell(c2);
-        var text = !inMonth ? '' : (duties.length ? joinLabels(duties) : 'Off');
+        // No duty assigned => empty cell (never the word "Off").
+        var text = !inMonth ? '' : (duties.length ? joinLabels(duties) : '');
 
         dCell.value = inMonth ? day : null;
         dCell.fill = F(inMonth ? (fillDateRow ? pal.bg : '#FFFFFF') : '#F3F4F6');
@@ -776,7 +1094,7 @@
     var legendRowNum = row + 2;
     ws.getRow(legendRowNum).height = 24;
     var legend = [['A duties', 'A'], ['P duties', 'P'], ['O duties', 'O'], ['N', 'N'],
-                  ['VL', 'VL'], ['Resp / Other', 'OTHER'], ['Off', 'OFF']];
+                  ['VL', 'VL'], ['Resp / Other', 'OTHER'], ['Blank', 'OFF']];
     for (var k = 0; k < 7; k++) {
       var lc = ws.getRow(legendRowNum).getCell(k + 1);
       var lp = palette[legend[k][1]];
@@ -787,13 +1105,7 @@
       lc.border = { top: thin, bottom: thin, left: thin, right: thin };
     }
 
-    var noteRowNum = row + 3;
-    ws.getRow(noteRowNum).height = 18;
-    ws.mergeCells(noteRowNum, 1, noteRowNum, 7);
-    var nc = ws.getRow(noteRowNum).getCell(1);
-    nc.value = 'Source: ' + roster.fileName + '  •  Times for calendar export use Asia/Hong_Kong.';
-    nc.font = { name: 'Calibri', size: 9, color: { argb: 'FF9CA3AF' } };
-    nc.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    // No remarks / source footer — the sheet ends with the colour legend.
 
     // Print setup: landscape, fit to one page
     ws.pageSetup = {
@@ -803,7 +1115,7 @@
       horizontalCentered: true, verticalCentered: false,
       margins: { left: 0.25, right: 0.25, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 }
     };
-    ws.pageSetup.printArea = 'A1:G' + noteRowNum;
+    ws.pageSetup.printArea = 'A1:G' + legendRowNum;
     return wb;
   }
 
@@ -821,9 +1133,11 @@
    * ------------------------------------------------------------------ */
   var API = {
     PALETTE: PALETTE, CATEGORY_ORDER: CATEGORY_ORDER, CSS_KEY: CSS_KEY,
+    THEMES: THEMES, THEME_BY_ID: THEME_BY_ID,
     EXCLUDED_STAFF: EXCLUDED_STAFF, COLOR_KEY: COLOR_KEY, CDN: CDN,
     MONTH_NAMES: MONTH_NAMES, DAY_NAMES: DAY_NAMES, DAY_ABBR: DAY_ABBR,
     clonePalette: clonePalette, colorsFor: colorsFor, autoFg: autoFg,
+    themeIdForPalette: themeIdForPalette,
     allDutyCodes: allDutyCodes, codeKey: codeKey, joinLabels: joinLabels,
     parseWorkbook: parseWorkbook,
     categoryOf: categoryOf,
@@ -848,7 +1162,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var state = {
     roster: null, staffId: null, view: 'calendar', filter: '', activeIndex: -1,
-    palette: clonePalette(PALETTE), codeColors: {},
+    palette: clonePalette(PALETTE), codeColors: {}, theme: 'pastel',
     autoText: { A: true, P: true, O: true, N: true, VL: true, OTHER: true, OFF: true }
   };
 
@@ -919,6 +1233,7 @@
       var o = JSON.parse(raw);
       if (!o) return;
       if (o.palette) state.palette = clonePalette(o.palette);
+      state.theme = THEME_BY_ID[o.theme] ? o.theme : themeIdForPalette(state.palette);
       if (o.codeColors && typeof o.codeColors === 'object') {
         Object.keys(o.codeColors).forEach(function (k) {
           var v = o.codeColors[k];
@@ -933,12 +1248,15 @@
   function saveColors() {
     try {
       localStorage.setItem(COLOR_KEY, JSON.stringify({
-        palette: state.palette, codeColors: state.codeColors, autoText: state.autoText
+        palette: state.palette, codeColors: state.codeColors,
+        autoText: state.autoText, theme: state.theme
       }));
     } catch (e) { /* private mode — keep working in memory */ }
   }
   /** Push the category palette into CSS variables used by every coloured element. */
   function applyCssPalette() {
+    // Shape accents (square badges / rounded pills) are driven by this attribute.
+    document.documentElement.setAttribute('data-duty-theme', state.theme);
     CATEGORY_ORDER.forEach(function (cat) {
       var p = state.palette[cat], k = CSS_KEY[cat], rootStyle = document.documentElement.style;
       rootStyle.setProperty('--' + k + '-bg', p.bg);
@@ -1006,6 +1324,7 @@
     if (r) {
       $('diagnosticsText').textContent =
         'Sheet name        : ' + r.sheetName + '\n' +
+        'Layout            : ' + (r.layout || 'POH') + '\n' +
         'Month / year      : ' + r.monthName + ' ' + r.year + '  (from ' + r.monthSource + ')\n' +
         'Days in month     : ' + r.daysInMonth + '   |   day rows found: ' + r.dayRowCount + '\n' +
         'Day columns       : Senior ' + r.seniorDayCol + ' / MO ' + r.moDayCol + '\n' +
@@ -1090,8 +1409,9 @@
     if (!state.roster || !state.staffId) { el.innerHTML = ''; return; }
     var c = API.summary(state.roster, state.staffId);
     var items = [['Total duties', c.TOTAL, 'badge-total']];
-    API.CATEGORY_ORDER.forEach(function (cat) {
-      var key = cat === 'OTHER' ? 'Resp / Other' : (cat === 'OFF' ? 'Off days' : state.palette[cat].label);
+    var cats = API.CATEGORY_ORDER.filter(function (cat) { return cat !== 'OFF'; });
+    cats.forEach(function (cat) {
+      var key = cat === 'OTHER' ? 'Resp / Other' : state.palette[cat].label;
       items.push([key, c[cat], 'badge-' + cat]);
     });
     el.innerHTML = items.map(function (it) {
@@ -1099,7 +1419,7 @@
              ' <span class="badge-n">' + it[1] + '</span></span>';
     }).join('');
     // Apply the current (possibly user-edited) palette to each badge.
-    API.CATEGORY_ORDER.forEach(function (cat, i) {
+    cats.forEach(function (cat, i) {
       var node = el.children[i + 1];
       if (!node) return;
       var p = state.palette[cat];
@@ -1134,7 +1454,7 @@
       var cat = list.length ? API.categoryOf(list[0].code) : 'OFF';
       var pal = list.length ? API.colorsFor(list[0].code, state.palette, state.codeColors)
                             : state.palette.OFF;
-      var text = list.length ? API.joinLabels(list) : 'Off';      // e.g. A5/FUC
+      var text = list.length ? API.joinLabels(list) : '';         // blank on unassigned days
       var notes = list.map(function (x) {
         return x.label + ' ' + x.timing.label + (x.note ? ' — ' + x.note : '');
       }).join('\n');
@@ -1143,7 +1463,7 @@
       var longClass = text.length > 9 ? ' is-long' : '';
       return '<div class="cal-cell cat-' + cat + (isToday ? ' is-today' : '') +
              '" style="--cell-bg:' + pal.bg + ';--cell-fg:' + pal.fg + '"' +
-             ' title="' + html(notes || 'No duty') + '">' +
+             (notes ? ' title="' + html(notes) + '"' : '') + '>' +
              '<div class="cal-num">' + day + '</div>' +
              '<div class="cal-code' + (list.length ? longClass : ' is-off') + '">' +
              html(text) + '</div></div>';
@@ -1163,13 +1483,15 @@
       // Paired duties are shown as one chip: A5/FUC rather than two loose codes.
       var chipPal = list.length ? API.colorsFor(list[0].code, state.palette, state.codeColors)
                                 : state.palette.OFF;
-      var chips = '<span class="chip" style="--chip-bg:' + chipPal.bg + ';--chip-fg:' +
-                  chipPal.fg + '">' + html(list.length ? API.joinLabels(list) : 'Off') + '</span>';
+      var chips = list.length
+        ? '<span class="chip" style="--chip-bg:' + chipPal.bg + ';--chip-fg:' +
+          chipPal.fg + '">' + html(API.joinLabels(list)) + '</span>'
+        : '';                                                     // blank on unassigned days
       var times = list.map(function (x) {
         return '<strong>' + html(x.label) + '</strong> ' + html(x.timing.label) +
                (x.note ? ' · ' + html(x.note) : '') +
                (x.extra ? ' · ' + html(x.extra) : '');
-      }).join(' &nbsp;|&nbsp; ') || 'No duty assigned';
+      }).join(' &nbsp;|&nbsp; ');
       rows.push('<div class="agenda-row' + (list.length ? '' : ' is-off') +
                 '" style="--row-bg:' + pal.bg + ';--row-fg:' + pal.fg + '">' +
                 '<div class="agenda-date"><span class="agenda-dow">' + DAY_ABBR[wd] +
@@ -1194,8 +1516,37 @@
     renderSummary(); renderCalendar(); renderAgenda(); renderLegend();
   }
 
+  /** Mark the chosen preset (or "Custom colours") without rebuilding the editor. */
+  function updateThemeSelection() {
+    if (!$('themeList')) return;
+    Array.prototype.forEach.call($('themeList').querySelectorAll('.theme-option'), function (btn) {
+      var active = btn.getAttribute('data-theme-id') === state.theme;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-checked', String(active));
+    });
+    if ($('themeCurrent')) {
+      $('themeCurrent').textContent = state.theme === 'custom' ? 'Custom colours' : '';
+    }
+  }
+
   function renderColorUI() {
     if (!$('colorGrid')) return;
+    if ($('themeList')) {
+      var swatchCats = ['A', 'P', 'O', 'N', 'VL', 'OTHER'];
+      $('themeList').innerHTML = THEMES.map(function (t) {
+        var swatches = swatchCats.map(function (cat) {
+          return '<i style="background:' + t.palette[cat].bg + '"></i>';
+        }).join('');
+        return '<button type="button" class="theme-option' +
+               (t.id === state.theme ? ' is-active' : '') + '" data-theme-id="' + t.id +
+               '" role="radio" aria-checked="' + (t.id === state.theme) + '">' +
+               '<span class="theme-swatch" aria-hidden="true">' + swatches + '</span>' +
+               '<span class="theme-text"><strong>' + html(t.name) + '</strong><small>' +
+               html(t.desc) + '</small></span>' +
+               '<span class="theme-tick" aria-hidden="true">&#10003;</span></button>';
+      }).join('');
+      updateThemeSelection();
+    }
     $('colorGrid').innerHTML = API.CATEGORY_ORDER.map(function (cat) {
       var p = state.palette[cat], auto = state.autoText[cat];
       return '<div class="color-row">' +
@@ -1228,6 +1579,19 @@
 
   function bindColorUI() {
     var panel = $('colorPanel');
+    // One click applies a whole scheme to the web UI AND the Excel export.
+    $('themeList').addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-theme-id]') : null;
+      if (!btn) return;
+      var id = btn.getAttribute('data-theme-id'), theme = THEME_BY_ID[id];
+      if (!theme) return;
+      state.theme = id;
+      state.palette = clonePalette(theme.palette);
+      state.codeColors = {};                     // overrides would mask the new scheme
+      CATEGORY_ORDER.forEach(function (cat) { state.autoText[cat] = true; });
+      saveColors(); applyCssPalette(); renderColorUI(); refreshColouredViews();
+      toast(theme.name + ' applied.');
+    });
     panel.addEventListener('input', function (e) {
       var t = e.target, kind = t.getAttribute('data-kind');
       if (kind === 'bg' || kind === 'fg') {
@@ -1243,10 +1607,12 @@
         if (prev) { prev.style.background = p.bg; prev.style.color = p.fg; }
         var fgInput = panel.querySelector('input[data-kind="fg"][data-cat="' + cat + '"]');
         if (fgInput) fgInput.value = p.fg;
+        state.theme = 'custom'; updateThemeSelection();
         refreshColouredViews(); saveColors();
       } else if (kind === 'code-bg') {
         var code = t.getAttribute('data-code');
         state.codeColors[code] = { bg: t.value, fg: autoFg(t.value) };
+        state.theme = 'custom'; updateThemeSelection();
         refreshColouredViews(); saveColors();
       }
     });
@@ -1256,6 +1622,7 @@
         var cat = t.getAttribute('data-cat');
         state.autoText[cat] = t.checked;
         if (t.checked) state.palette[cat].fg = autoFg(state.palette[cat].bg);
+        state.theme = 'custom';
         renderColorUI(); refreshColouredViews(); saveColors();
       } else if (kind === 'inherit') {
         var code = t.getAttribute('data-code');
@@ -1264,15 +1631,17 @@
           var base = state.palette[API.categoryOf(code)];
           state.codeColors[code] = { bg: base.bg, fg: base.fg };
         }
+        state.theme = 'custom';
         renderColorUI(); refreshColouredViews(); saveColors();
       }
     });
     $('resetColors').addEventListener('click', function () {
+      state.theme = 'pastel';
       state.palette = clonePalette(PALETTE);
       state.codeColors = {};
       CATEGORY_ORDER.forEach(function (cat) { state.autoText[cat] = true; });
       saveColors(); applyCssPalette(); renderColorUI(); refreshColouredViews();
-      toast('Duty colours reset to the pastel defaults.');
+      toast('Duty colours reset to Soft Pastel Enterprise.');
     });
   }
 
